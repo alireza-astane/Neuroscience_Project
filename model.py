@@ -104,4 +104,6 @@ def run(N, f, dt, T, w_in):
 
         Sleep += tau_rp * is_spike
 
+    torch.save(spikes, f"{N}_{f}_{T}_{w_in*10**12}.pt")
+
     return spikes
