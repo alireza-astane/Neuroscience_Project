@@ -6,7 +6,7 @@ from tqdm import tqdm
 import torch
 import scipy
 
-
+dtype = torch.float16
 K = 7.5
 n_r = 6
 R = 2 / 3 * 10**6
@@ -29,26 +29,28 @@ T = 1
 
 def run(N, f, dt, T, w_in):
     time_steps = int(T / dt)
-    poisson_I = torch.tensor(np.random.poisson(f * dt, (N, time_steps)), device=device)
-    spikes = torch.zeros((N, time_steps), device=device)
-    U = torch.zeros((N, time_steps, n_r), device=device)
+    poisson_I = torch.tensor(
+        np.random.poisson(f * dt, (N, time_steps)), device=device, dtype=dtype
+    )
+    spikes = torch.zeros((N, time_steps), device=device, dtype=dtype)
+    U = torch.zeros((N, time_steps, n_r), device=device, dtype=dtype)
     U[:, 0, :] = 1
-    V = torch.zeros(N, device=device)
-    Sleep = torch.zeros(N, device=device)
+    V = torch.zeros(N, device=device, dtype=dtype)
+    Sleep = torch.zeros(N, device=device, dtype=dtype)
     Switch = Sleep == 0
 
     Graph = x.erdos_renyi_graph(N, K / N, seed=0, directed=False)
-    A = torch.zeros((N, N), device=device)
+    A = torch.zeros((N, N), device=device, dtype=dtype)
     B = x.adjacency_matrix(Graph)
     for edge in list(Graph.edges):
         A[edge[0], edge[1]] = +1
 
-    t_span = torch.tile(torch.arange(0, T, dt, device=device), (N, 1))
+    t_span = torch.tile(torch.arange(0, T, dt, device=device, dtype=dtype), (N, 1))
 
     def get_I_ext(t):
-        I_ext = torch.zeros(N, device=device)
+        I_ext = torch.zeros(N, device=device, dtype=dtype)
         step = int(t / dt)
-        fired = torch.zeros((N, time_steps), device=device)
+        fired = torch.zeros((N, time_steps), device=device, dtype=dtype)
         fired[:, :step] = poisson_I[:, :step]
         return w_e * torch.sum(
             (torch.exp((-(t - t_span * poisson_I) / tau_s) * fired) * fired), dim=1
@@ -57,16 +59,16 @@ def run(N, f, dt, T, w_in):
     def get_I_in(t, U, spikes):
         step = int(t / dt)
         opening = p_r * (U * spikes.reshape((N, time_steps, 1)))
-        eta = torch.rand(opening.shape, device=device)
+        eta = torch.rand(opening.shape, device=device, dtype=dtype)
 
-        fired = torch.zeros((N, time_steps), device=device)
+        fired = torch.zeros((N, time_steps), device=device, dtype=dtype)
         fired[:, :step] = spikes[:, :step]
         gate = torch.sum(
             torch.exp((-(t - t_span * spikes) / tau_s) * fired)
             * fired
-            * torch.heaviside(opening - eta, torch.zeros_like(eta, device=device)).sum(
-                2
-            ),
+            * torch.heaviside(
+                opening - eta, torch.zeros_like(eta, device=device, dtype=dtype)
+            ).sum(2),
             dim=1,
         )
         return w_in * A @ gate
@@ -75,10 +77,10 @@ def run(N, f, dt, T, w_in):
         return -(V - V_r) / (R * C) + get_I_ext(t) / C + get_I_in(t, U, spikes) / C
 
     def U_dot(t, U, spikes):
-        U_dot = torch.zeros((N, 6), device=device)
+        U_dot = torch.zeros((N, 6), device=device, dtype=dtype)
         step = int(t / dt)
         opening = spikes[:, step].reshape((-1, 1))
-        eta = torch.rand((N, n_r), device=device)
+        eta = torch.rand((N, n_r), device=device, dtype=dtype)
         U_dot = (
             1 - U[:, step]
         ) / tau_R  # - ((torch.heaviside(p_r - eta ,torch.zeros_like(eta,device=device)) * opening) * U[:,step])
