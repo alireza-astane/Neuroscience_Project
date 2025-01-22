@@ -212,5 +212,8 @@ pov/*
 
 
 
+*.pt
+/*.pt
 
+./*.pt
 # End of https://www.toptal.com/developers/gitignore/api/python,visualstudiocode,jupyternotebooks
