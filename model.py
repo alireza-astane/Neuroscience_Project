@@ -20,7 +20,7 @@ tau_s = 5 * 10**-3
 tau_R = 0.1
 device = "cuda"
 
-w_in = 1000  # 50 * 10**-12
+w_in = 50 * 10**-12
 N = 10
 f = 5
 dt = 0.0001
@@ -35,7 +35,7 @@ def run(N, f, dt, T, w_in):
     spikes = torch.zeros((N, time_steps), device=device, dtype=dtype)
     U = torch.zeros((N, time_steps, n_r), device=device, dtype=dtype)
     U[:, 0, :] = 1
-    V = torch.zeros(N, device=device, dtype=dtype)
+    V = torch.zeros(N, device=device, dtype=dtype) + V_r
     Sleep = torch.zeros(N, device=device, dtype=dtype)
     Switch = Sleep == 0
 
@@ -76,11 +76,11 @@ def run(N, f, dt, T, w_in):
     def V_dot(V, t, U, spikes):
         return -(V - V_r) / (R * C) + get_I_ext(t) / C + get_I_in(t, U, spikes) / C
 
-    def U_dot(t, U, spikes):
-        U_dot = torch.zeros((N, 6), device=device, dtype=dtype)
+    def U_dot(t, U):
+        # U_dot = torch.zeros((N, 6), device=device, dtype=dtype)
         step = int(t / dt)
-        opening = spikes[:, step].reshape((-1, 1))
-        eta = torch.rand((N, n_r), device=device, dtype=dtype)
+        # opening = spikes[:, step].reshape((-1, 1))
+        # eta = torch.rand((N, n_r), device=device, dtype=dtype)
         U_dot = (
             1 - U[:, step]
         ) / tau_R  # - ((torch.heaviside(p_r - eta ,torch.zeros_like(eta,device=device)) * opening) * U[:,step])
@@ -88,11 +88,11 @@ def run(N, f, dt, T, w_in):
 
     for step in tqdm(range(time_steps - 1)):
         Sleep -= (Sleep > 0) * dt
-        Switch = Sleep < 0
+        Switch = Sleep <= 0
 
         t = step * dt
 
-        dU = U_dot(t, U, spikes) * dt
+        dU = U_dot(t, U) * dt
         dV = V_dot(V, t, U, spikes) * dt
 
         U[:, step + 1, :] = U[:, step, :] + dU
