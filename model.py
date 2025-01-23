@@ -6,7 +6,7 @@ from tqdm import tqdm
 import torch
 import scipy
 
-dtype = torch.float16
+dtype = torch.float32
 K = 7.5
 n_r = 6
 R = 2 / 3 * 10**6
